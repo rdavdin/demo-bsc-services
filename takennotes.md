@@ -11,6 +11,8 @@
 
 5. should organize each service with a separate db?
 
+6. how to setup and deploy source code on a web server?
+
 -------- commands
 1. ssh -i ~/.ssh/sshcm rdavdin@34.87.101.66
 

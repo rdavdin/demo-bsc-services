@@ -89,3 +89,54 @@ const web3 = new Web3('https://rpc.ankr.com/bsc');
 
 // let price = parseInt(toBN(obj.quoteAmount).mul(toBN('100000000')).div(toBN(obj.baseAmount)))/(10**8);
 // console.log('priceBn', getPrice(price, 8, 18));
+
+// let total = 0;
+// let errorCount = 0;
+// function process(){
+//   console.log('start process');
+//   try {
+//     const step = 10;
+//     let skip = total;
+//     console.log(skip, total);
+//     if(errorCount < 2){
+//       throw new Error("hehe ");
+//     }
+//     skip += step;
+//     total = skip;
+//   } catch (error) {
+//     errorCount++;
+//     console.log('catch error and call again ', errorCount);
+//     process();
+//     return;
+//   }
+//   console.log('before setTimeout');
+//   setTimeout(() => {
+//     process();
+//   }, 1000);
+//   console.log('end process ', errorCount);
+// }
+
+// function main(){
+//   console.log('start main');
+//   process();
+//   console.log('end!');
+// }
+// main();
+
+
+// async function test(){
+//   const address = "0x8935daecF659B32b2c3a18C561b31074D73e11F7";
+
+//   try {
+//     const code = await web3.eth.getCode(address, 'latest');
+//     if(code){
+//       console.log(code);
+//     }else{
+//       console.log("cannot find code");
+//     }
+//   } catch (error) {
+//     console.log(error);
+//   }
+// }
+
+// test();

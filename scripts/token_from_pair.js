@@ -25,9 +25,6 @@ let currentUrp = 0;
 const TokenModel = require("../models/Token");
 const PairModel = require("../models/Pair");
 
-require("dotenv").config();
-const connectDB = require("../db/connect");
-
 const GetErc20Abi = require("../abi/GetERC20Metadata.json");
 const multiget = new web3.eth.Contract(
   GetErc20Abi,
@@ -42,7 +39,7 @@ const errors = {
 
 let gTokens = {};
 let gInvalidTokens = {};
-let totalSkip = 46150; //50270;//
+let gTotalSkip = 46150; //50270;//
 
 function changeRpc(){
   currentUrp++;
@@ -51,15 +48,11 @@ function changeRpc(){
 }
 
 async function warmup() {
-  try {
-    const tokens = await TokenModel.find({});
-    tokens.forEach((token) => {
-      updateState(token);
-    });
-    console.log("warmup finished!");
-  } catch (error) {
-    console.log("warmup tokens error ", error);
-  }
+  const tokens = await TokenModel.find({});
+  tokens.forEach((token) => {
+    updateState(token);
+  });
+  console.log("warmup finished!");
 }
 
 function updateState(token) {
@@ -69,7 +62,7 @@ function updateState(token) {
 async function processData() {
   try {
     const step = 1000;
-    let skip = totalSkip;
+    let skip = gTotalSkip;
     let pairs = [];
 
     pairs = await PairModel.find({})
@@ -85,7 +78,7 @@ async function processData() {
     }
     await addTokens(newTokens);
     skip += step;
-    totalSkip = skip;
+    gTotalSkip = skip;
   } catch (error) {
     if (error.message == errors.ERR_MULTI_GET) {
       throw error;
@@ -98,7 +91,7 @@ async function processData() {
   }
 
   setTimeout(async () => {
-    console.log(totalSkip);
+    console.log(gTotalSkip);
     await processData();
   }, 3000);
 }
@@ -155,6 +148,8 @@ async function storeTokens(tokens) {
   }
 }
 
+require("dotenv").config();
+const connectDB = require("../db/connect");
 async function main() {
   try {
     const startMs = Date.now();

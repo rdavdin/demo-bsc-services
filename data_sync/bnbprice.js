@@ -8,8 +8,11 @@ const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d1308401
 const web3 = new Web3("https://bscrpc.com");
 
 const PancakePairABI = require('../abi/PancakePair.json');
-const batchSize = 2000;
+const batchSize = 1000;
 const toBN = web3.utils.toBN;
+
+const GET_LOG_ERROR = 'GET_LOG_ERROR';
+const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 class BNBPrice {
   constructor(){
@@ -48,55 +51,70 @@ class BNBPrice {
   }
 
   async warmup(){
-    const docs = await WbnbBusdModel.find({}).sort('blockNumber');
-    if(docs.length > 0) this.trackedMinBlock = docs[0].blockNumber;
-    docs.forEach(d => {
-      if(this.crawledBlock < d.blockNumber) this.crawledBlock = d.blockNumber;
-      this.wbnbBusd[d.blockNumber] = d.price;
-    });
-    console.log(`this.crawedBlock after warmup: this.crawledBlock ${this.crawledBlock}, this.trackedMinBlock ${this.trackedMinBlock}`); 
+    const startMs = Date.now();
+
+    const totalDocs = await WbnbBusdModel.estimatedDocumentCount();
+    let totalSkip = 0;
+    const step = 100000;
+
+    do {
+      console.log('totalSkip ', totalSkip);
+      const docs = await WbnbBusdModel.find({}).sort('blockNumber').limit(step).skip(totalSkip);
+      if(docs.length > 0) this.trackedMinBlock = docs[0].blockNumber;
+      docs.forEach(d => {
+        if(this.crawledBlock < d.blockNumber) this.crawledBlock = d.blockNumber;
+        this.wbnbBusd[d.blockNumber] = d.price;
+      });
+      totalSkip += step;
+    } while (totalSkip < totalDocs);
+
+    console.log(`crawledBlock ${this.crawledBlock}, trackedMinBlock ${this.trackedMinBlock}`);
+    console.log(`warmup done! - ${Date.now() - startMs}`); 
   }
 
   async syncWbnbBusd(toBlock){
+    if(toBlock <= this.crawledBlock) return;
+    const fromBlock = this.crawledBlock + 1;
+
+    const options = {
+      fromBlock,
+      toBlock,
+      address: WBNB_BUSD,
+      topics: [
+        SWAP_TOPIC
+      ],
+    };
+    let logs = [];
     try {
-      if(toBlock <= this.crawledBlock) return;
-      const fromBlock = this.crawledBlock + 1;
-
-      const options = {
-        fromBlock,
-        toBlock,
-        address: WBNB_BUSD,
-        topics: [
-          SWAP_TOPIC
-        ],
-      };
-      let logs = await web3.eth.getPastLogs(options);
-      console.log(`logs.length ${logs.length}`);
-
-      let syncedBlock = fromBlock - 1;
-      logs.forEach(async (log) => {
-        if(syncedBlock == log.blockNumber) return;
-        const amounts = web3.eth.abi.decodeParameters(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
-        const price = this.calPrice(amounts);
-        if(price){
-          syncedBlock = log.blockNumber;
-          await WbnbBusdModel.create({
-            blockNumber: log.blockNumber, 
-            price: price
-          });
-          this.wbnbBusd[log.blockNumber] = price;
-          if(this.trackedMinBlock > log.blockNumber) this.trackedMinBlock = log.blockNumber;
-        }
-      });
-
-      this.crawledBlock = toBlock;
-      console.log(`this.crawledBlock updated ${this.crawledBlock}`);
+      logs = await web3.eth.getPastLogs(options);
     } catch (error) {
-      throw new Error('Error: syncWbnbBusd abc');
+      error.msg = GET_LOG_ERROR;
+      throw error;
     }
+    console.log(`logs.length ${logs.length}`);
+
+    let syncedBlock = fromBlock - 1;
+    logs.forEach(async (log) => {
+      if(syncedBlock == log.blockNumber) return;
+      const amounts = web3.eth.abi.decodeParameters(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
+      const price = this.calPrice(amounts);
+      if(price){
+        syncedBlock = log.blockNumber;
+        //TODO: consider collect a batch then insertMany ?
+        await WbnbBusdModel.create({
+          blockNumber: log.blockNumber, 
+          price: price
+        });
+        this.wbnbBusd[log.blockNumber] = price;
+        if(this.trackedMinBlock > log.blockNumber) this.trackedMinBlock = log.blockNumber;
+      }
+    });
+
+    this.crawledBlock = toBlock;
+    console.log(`this.crawledBlock updated ${this.crawledBlock}`);
   }
 
-  async crawlWbnbBusd(fromBlock, toBlock, batchSize = 10000){
+  async crawlWbnbBusd(fromBlock, toBlock, batchSize = 1000){
     try {
       this.crawledBlock = fromBlock - 1;
       const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
@@ -110,11 +128,9 @@ class BNBPrice {
 
       console.log(`crawlWbnbBusd done: fromBlock ${fromBlock}, toBlock ${latest}`);
     } catch (error) {
-      console.log(`error from crawlWbnbBusd \n`);
       console.log(error);
-      setTimeout(() => {
-        this.crawlWbnbBusd(this.crawledBlock + 1, toBlock, batchSize);
-      }, 30000);
+      await sleep(30000);
+      await this.crawlWbnbBusd(this.crawledBlock + 1, toBlock, batchSize);
     }
   }
 
@@ -122,7 +138,7 @@ class BNBPrice {
     await this.warmup();
     let latest = await web3.eth.getBlockNumber();
     const fromBlock = this.crawledBlock + 1;
-    await this.crawlWbnbBusd(fromBlock, latest, 1000);
+    await this.crawlWbnbBusd(fromBlock, latest, batchSize);
 
     setInterval(async () => {
       latest = await web3.eth.getBlockNumber();
@@ -131,31 +147,4 @@ class BNBPrice {
   }
 }
 
-
-require("dotenv").config();
-const connectDB = require("../db/connect");
-
-async function main(){
-  const startMs = Date.now();
-
-  const conn = await connectDB(process.env.MONGODB_URI);
-  console.log(`db connected!`);
-  conn.connection.on("disconnected", ()=>{
-    console.log('db disconnected!');
-  })
-
-  let bnbPrice = new BNBPrice();
-  // await bnbPrice.main();
-
-  const latest = await web3.eth.getBlockNumber();
-  const fromBlock = latest - 1000000;
-  console.log(`crawl 1 million blocks back fromBlock ${fromBlock} latest ${latest}`);
-  // await bnbPrice.warmup();
-  await bnbPrice.crawlWbnbBusd(fromBlock, latest, batchSize);
-
-  const ms = Date.now() - startMs;
-  console.log(`Time spent ${ms}`);
-}
-
-// main();
 module.exports = BNBPrice;

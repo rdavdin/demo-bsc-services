@@ -16,16 +16,24 @@ app.get('/', (req, res) => {
 })
 
 app.get('/api/v1/token/:token', (req, res) => {
-  //TODO: return token info
+  const token = tokenSync.getToken(req.params.token);
+  if(!token) {
+    res.status(404).json({msg: `cannot find token with id ${req.params.token}`});
+    return;
+  }
+    
+  res.json({ token });
 })
 
-app.get('/api/v1/token/:tokens', (req, res) => {
-  //TODO: return a list of token info
+app.get('/api/v1/token/tokens/:tokens', (req, res) => {
+  const tokens = req.params.tokens.split(',');
+  res.json({tokens: tokenSync.getTokens(tokens)});
 })
 
+//FIXME: who can post tokens?
 app.post('/api/v1/token/tokens', async (req, res) => {
-  //TODO: store the list of tokens into db. Who can do this?
-  const tokens = req.body.tokens;
+  if(req.body.tokens) await tokenSync.addTokens(req.body.tokens);
+  res.json({status: 200});
 })
 
 const port = process.env.TOKEN_PORT || 3003;
@@ -36,6 +44,7 @@ const start = async () => {
     await connectDB(process.env.MONGODB_URI);
     console.log(`db connected!`);
 
+    await tokenSync.main();    
 
     app.listen(port, () => {
       const ms = Date.now() - startMs;
