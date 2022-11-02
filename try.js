@@ -92,21 +92,21 @@ let obj = {
 
 obj = {
   "_id": {
-    "$oid": "635fd6062eeee036a460010a"
+    "$oid": "635fd6062eeee036a45fff5d"
   },
-  "pair": "0x66babd248c9bc3834267c7714bd89a6e32b5cd14",
-  "base": "0xc275dddbd0aa7d8be23d98992a5b7819c3115917",
+  "pair": "0x41ce7724435b9732aa49f713f6117b42e178a3e8",
+  "base": "0x8a87c36bb9e9b91c76e7a0a374a59e57cf0c0f5b",
   "quote": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
-  "baseAmount": "268598078843237005350847604864",
-  "quoteAmount": "200000000000000000",
-  "isBuy": true,
-  "blockNumber": 22455950,
-  "txHash": "0xc2e34759cd48117c3886438b83a1a2950409b4b4956af262d8dea49c558272b7",
+  "baseAmount": "326822969044443283959049388758",
+  "quoteAmount": "1243979097662704688",
+  "isBuy": false,
+  "blockNumber": 22455934,
+  "txHash": "0x40b899e24747651b9bd1ad05a6cacc702f7d26389caaaa57a9e51d641d79a569",
   "priceUSD": "0",
   "__v": 0
 }
 
-obj.decimalB = 6;
+obj.decimalB = 18;
 obj.decimalQ = 18;
 
 //Step 1: calculate price just based on the amounts of base and quote, don't care to decimals
@@ -141,6 +141,11 @@ function calPriceBK(amount0, amount1, decimal0, decimal1){
   const n1p0 = parseInt(toBN(amount1).mul(toBN('1'.padEnd(n+1,'0'))).div(toBN(amount0)))/Math.pow(10, n);
   return getPrice(n1p0, decimal0, decimal1);
 }
+
+  let price = parseInt(toBN(obj.quoteAmount).mul(toBN('100000000')).div(toBN(obj.baseAmount)))/(10**8);
+  price = getPrice(price, obj.decimalB); //for all decimals of quote is default, 18
+
+  console.log(price);
 
 const rs1 = calPrice(obj.baseAmount, obj.quoteAmount, obj.decimalB, obj.decimalQ);
 const rs2 = calPrice(obj.quoteAmount, obj.baseAmount, obj.decimalQ, obj.decimalB);
