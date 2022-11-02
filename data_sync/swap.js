@@ -223,9 +223,7 @@ class Swap {
     //TODO: check this tx: 0x03dedd3dc45e025ae55cadaaa2d453c896c115252d68a1f8e1a93591640fcb4a ?
     if(obj.baseAmount == '0') return undefined;
     
-    //FIXME: this has trouble ???
-    let price = parseInt(toBN(obj.quoteAmount).mul(toBN('100000000')).div(toBN(obj.baseAmount)))/(10**8);
-    price = getPrice(price, aBase.decimals); //for all decimals of quote is default, 18
+    let price = calPrice(obj.baseAmount, obj.quoteAmount, aBase.decimals);
     obj.priceUSD = price*mulPrice;
     return obj;
   }
