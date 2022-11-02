@@ -7,7 +7,8 @@
     "start": "nodemon app.js",
     "pair_service": "node --max-old-space-size=3072 ./services/pair",
     "token_service": "node --max-old-space-size=2048 ./services/token",
-    "bnbprice_service": "node --max-old-space-size=2048 ./services/bnbprice"
+    "bnbprice_service": "node --max-old-space-size=2048 ./services/bnbprice",
+    "swap_service": "node --max-old-space-size=3072 ./services/swap"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +23,7 @@
     "web3": "^1.8.0"
   },
   "devDependencies": {
+    "bignumber.js": "^9.1.0",
     "nodemon": "^2.0.20"
   }
 }

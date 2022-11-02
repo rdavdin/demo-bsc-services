@@ -16,12 +16,23 @@ app.get('/', (req, res) => {
 })
 
 app.get('/api/v1/price/bnbprice', (req, res) => {
-  res.json(bnbPriceSync.getPrice());
+  const price = bnbPriceSync.getPrice();
+  if(!price) {
+    res.status(404).json({msg: `Cannot find bnbprice now. Pls try again later`});
+    return;
+  }
+  res.status(200).json({ price });
 })
 
 app.get('/api/v1/price/bnbprice/:blocknumber', (req, res) => {
   const {blocknumber} = req.params;
-  res.json(bnbPriceSync.getPrice(blocknumber));
+  const price = bnbPriceSync.getPrice(blocknumber);
+
+  if(!price) {
+    res.status(404).json({msg: `Cannot find bnbprice now. Pls try again later!`});
+    return;
+  }
+  res.status(200).json({ price });
 })
 
 const port = process.env.BNBPRICE_PORT || 3002;

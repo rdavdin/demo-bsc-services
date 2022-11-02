@@ -2,22 +2,34 @@ const { isQuote, getQuoteName, isWBNB } = require('./utils');
 const {getNumber, getPrice} = require('../utils/format');
 const axios = require('axios');
 const SwapModel = require('../models/Swap');
-const TokenModel = require('../models/Token');
 const Web3 = require('web3');
-const web3 = new Web3("https://bsc-dataseed1.ninicoin.io"); //for process2
+const web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
 
 const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
-const GetErc20Abi = require('../abi/GetERC20Metadata.json');
-const multiget = new web3.eth.Contract(GetErc20Abi, '0x6AC92802fa2ad602b9b9C77014B0f016CC3774DF');
 
+const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v1/pairs`;//"http://localhost:3001/api/v1/pairs";
+const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v1/price`;
+const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v1/token`;
 
-const PAIR_API_URL = "http://localhost:3001/api/v1/pairs";
-const BNB_PRICE_URL = "http://localhost:3002/api/v1/price";
-
-
-const batchSize = 500;
 const toBN = web3.utils.toBN;
+const GET_LOG_ERROR = 'GET_LOG_ERROR';
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
+/**
+ * return: 1 token0 = n token1? e.g: 1 token0 per 0.24343 token1
+ * @param {string} amount0
+ * @param {string} amount1
+ * @param {Number} decimal0
+ * @param {Number} decimal1
+ */
+ const calPrice = (amount0, amount1, decimal0 = 18, decimal1 = 18) =>{
+  if(toBN(amount0).isZero()) return 0;
+  const f = 8;
+  const n = (amount0.length + f) < amount1.length ? 0 : amount0.length + f - amount1.length;
+
+  const n1p0 = parseInt(toBN(amount1).mul(toBN('1'.padEnd(n+1,'0'))).div(toBN(amount0)))/Math.pow(10, n);
+  return getPrice(n1p0, decimal0, decimal1);
+}
 class Swap {
   constructor(){
     this.crawledBlock = -1;
@@ -25,57 +37,158 @@ class Swap {
 
   /**
    * get n last transactions of a particular token
-   * @returns {price, amount, total}
+   * @returns {priceUSD, amount, total, isBuy}
    */
-  getLastTs(token, n){
-    return {};
-  }
-
-  async warmup(fromBlock){
-    //TODO: just temporary to test
-    this.crawledBlock = fromBlock;
-  }
-
-  async getPair(pair){
-    const res = await axios.get(`${PAIR_API_URL}/${pair}`);
-    if(res.status != 200) return undefined;
-    return res.data;
-  }
-
-  async syncSwaps(toBlock){
+  async getLastTs(token, n = 20){
     try {
-      if(toBlock <= this.crawledBlock) return;
-      const fromBlock = this.crawledBlock + 1;
+      const address = token.toLowerCase();
+      let tokenInfo = await this.getToken(address);
+      if(!tokenInfo) return {status: 404, msg: `cannot get info of token ${address}`};
+      tokenInfo.address = address;
 
-      const options = {
-        fromBlock,
-        toBlock,
-        topics: [
-          SWAP_TOPIC
-        ]
-      };
-
-      console.log(`fromBlock: ${fromBlock}, toBlock: ${toBlock}`);
-      const pairLogs = await web3.eth.getPastLogs(options);
-      
-
-      pairLogs.forEach(async (log) => {
-        const aPair = await this.getPair(log.address);
-        if(!aPair) return;
-        await this.checkAndStore(aPair, log);
-      });
-
+      let swaps = [];
+      if(!isQuote(address)){
+        swaps = await SwapModel.find({base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
+        return await this.calTsInfo(tokenInfo, swaps);
+      }else{
+        const startMs = Date.now();
+        swaps = await SwapModel.find({$or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
+        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        return await this.calTsInfo(tokenInfo, swaps, false);
+      }
     } catch (error) {
-      throw new Error('syncSwaps abc');
+      return {status: 400, msg: error.message};
     }
   }
 
-  async checkAndStore(aPair, log){
-    const amounts = web3.eth.abi.decodeParameters(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
+  async calTsInfo(tokenInfo, swaps, sureBase = true){
+    let rs = [];
+    for(let i = 0; i < swaps.length; i++){
+      const swap = swaps[i];
+      if(swap.priceUSD == '0') continue;
+      // console.log(swap);
+      
+      if(!sureBase && (tokenInfo.address != swap.base)){
+        swap.isBuy = !swap.isBuy;
+        swap.amount = getNumber(swap.quoteAmount, 8);
+        const baseInfo = await this.getToken(swap.base);
+        if(!baseInfo) continue; //ignore and continue with others
+        let price = calPrice(swap.quoteAmount, swap.baseAmount, tokenInfo.decimals, baseInfo.decimals);
+        swap.priceUSD = price*swap.priceUSD;
+      }else{
+        swap.amount = getNumber(swap.baseAmount, 8, tokenInfo.decimals);
+      }
+      rs.push({priceUSD: swap.priceUSD, amount: swap.amount, isBuy: swap.isBuy})
+    }
 
-    if(amounts[0] == '0' && amounts[1] == '0') return undefined;
+    return rs;
+  }
+
+  async warmup(){
+    const d = await SwapModel.findOne({}).sort({blockNumber: -1});
+    if(d) {
+      console.log(`warmup: from block ${d.blockNumber}`);
+      this.crawledBlock = d.blockNumber;
+    }
+  }
+
+  async getPair(address){
+    try {
+      const res = await axios.get(`${PAIR_API_URL}/${address}`);
+      if(res.status != 200) return undefined;
+      return res.data.pair;
+    } catch (error) {
+      //console.log(error.code, error.message);
+      return undefined;
+    }
+  }
+
+  async getToken(address){
+    try {
+      const res = await axios.get(`${TOKEN_API_URL}/${address}`);
+      if(res.status != 200) return undefined;
+      return res.data.token;
+    } catch (error) {
+      //console.log(error.code, error.message);
+      return undefined;
+    }
+  }
+
+  async getBnbPrice(blockNumber){
+    try {
+      const res = await axios.get(`${BNB_PRICE_URL}/bnbprice/${blockNumber}`);
+      if(res.status != 200) return undefined;
+      return parseInt(res.data.price);
+    } catch (error) {
+      //console.log(error.code, error.message);
+      return undefined;
+    }
+  }
+
+  async syncSwaps(toBlock){
+    if(toBlock <= this.crawledBlock) return;
+    const fromBlock = this.crawledBlock + 1;
+    const options = {
+      fromBlock,
+      toBlock,
+      topics: [
+        SWAP_TOPIC
+      ]
+    };
+    console.log(`fromBlock: ${fromBlock}, toBlock: ${toBlock}`);
+    let swapLogs = [];
+    try {
+      swapLogs = await web3.eth.getPastLogs(options);
+    } catch (error) {
+      error.msg = GET_LOG_ERROR;
+      throw error;
+    }
+    let swapBatch = [];
+    for(let i = 0; i < swapLogs.length; i++){
+      const log = swapLogs[i];
+      const aPair = await this.getPair(log.address);
+      if(!aPair) continue;
+      const aBase = await this.getToken(aPair.base);
+      if(!aBase) continue;
+
+      let bnbPrice = 1;
+      if(isWBNB(aPair.quote)){
+        const price = await this.getBnbPrice(log.blockNumber);
+        if(!price) continue;
+        bnbPrice = price;
+      }
+      const obj = this.createSwapObj(aPair, aBase, log, bnbPrice);
+      if(obj) swapBatch.push(obj);
+    }
+    //console.log(swapBatch);
+    await this.storeDb(swapBatch);
+
+    this.crawledBlock = toBlock;
+    console.log(`Swap: crawledBlock updated: ${this.crawledBlock}`);
+  }
+
+  async storeDb(swapBatch) {
+    if (!swapBatch.length) return;
+    try {
+      await SwapModel.insertMany(swapBatch, { ordered: false });
+    } catch (error) {
+      if(error.code === 11000){ //ignore duplicate
+        console.log(`Ignore duplicate error`);
+      }else{
+        console.log(`Error insertMany ${error}`);
+        await sleep(3000);
+        await this.storeDb(swapBatch);
+        console.log('storeDb again after 3s successfully');
+      }
+    }
+  }
+
+  createSwapObj(aPair, aBase, log, mulPrice = 1){
+    const amounts = web3.eth.abi.decodeParameters(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
+    const {'0': in0, '1': in1, '2': out0, '3': out1} = {...amounts};
+    if(in0 == '0' && in1 == '0') return undefined;
     //this case should check? https://ethereum.stackexchange.com/questions/99553/how-to-understand-the-swap-event-payload
-    if(amounts[0] != '0' && amounts[1] != '0') return undefined;  
+    if(in0 != '0' && in1 != '0') return undefined;
 
     let obj = {
       pair: aPair.pair,
@@ -84,93 +197,70 @@ class Swap {
       blockNumber: log.blockNumber,
       txHash: log.transactionHash
     };
-
     aPair.baseIs0 = aPair.base.toLowerCase() < aPair.quote.toLowerCase() ? true : false;
-
     if(aPair.baseIs0){
-      if(amounts[0] == '0'){
+      if(in0 == '0'){
         obj.isBuy = true;
-        obj.baseAmount = amounts[2];
-        obj.quoteAmount = amounts[1];
+        obj.baseAmount = out0;
+        obj.quoteAmount = in1;
       }else{
         obj.isBuy = false;
-        obj.baseAmount = amounts[0];
-        obj.quoteAmount = amounts[3];
+        obj.baseAmount = in0;
+        obj.quoteAmount = out1;
       }
     }else{
-      if(amounts[1] == '0'){
+      if(in1 == '0'){
         obj.isBuy = true;
-        obj.baseAmount = amounts[3];
-        obj.quoteAmount = amounts[0];
+        obj.baseAmount = out1;
+        obj.quoteAmount = in0;
       }else{
         obj.isBuy = false;
-        obj.baseAmount = amounts[1];
-        obj.quoteAmount = amounts[2];
+        obj.baseAmount = in1;
+        obj.quoteAmount = out0;
       }
     }
+
+    //TODO: check this tx: 0x03dedd3dc45e025ae55cadaaa2d453c896c115252d68a1f8e1a93591640fcb4a ?
+    if(obj.baseAmount == '0') return undefined;
     
-    //FIXME: basically this is not a place to find or store TokenModel
-    //We have to store tokens from process of crawling pairs.
-    //Here is just to read and use data from TokenModel 
-    let baseToken = await TokenModel.findOne({address: obj.base});
-
-    if(!baseToken){
-      const rs = await multiget.methods.getMulti([obj.base]).call();
-      baseToken = {
-        address : obj.base,
-        symbol :  rs.symbols[0],
-        decimals: rs.decimals[0],
-        name : rs.names[0]
-      }
-      await TokenModel.create(baseToken, (err, t) => {
-        if(err) {
-          console.log(`Cannot create token ${baseToken}`);
-          console.log(err);
-        }
-      }) 
-    }
-
-    let bnbPrice = 1;
-    if(isWBNB(obj.quote)){
-      try {
-        const res = await axios.get(`${BNB_PRICE_URL}/bnbprice/${obj.blockNumber}`);
-        if(res.status != 200) return undefined;
-        bnbPrice = parseInt(res.data.price);
-      } catch (error) {
-        throw new Error('Cannot get bnbprice');
-      }
-    }
+    //FIXME: this has trouble ???
     let price = parseInt(toBN(obj.quoteAmount).mul(toBN('100000000')).div(toBN(obj.baseAmount)))/(10**8);
-    price = getPrice(price, baseToken.decimals);
+    price = getPrice(price, aBase.decimals); //for all decimals of quote is default, 18
+    obj.priceUSD = price*mulPrice;
+    return obj;
+  }
 
-    obj.priceUSD = price*bnbPrice;
-    console.log(obj);
-    
-    console.log('\n');
+  async crawlSwap(fromBlock, toBlock, batchSize = 20){
+    try {
+      this.crawledBlock = fromBlock - 1;
+      const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
+      let to = fromBlock + batchSize;
+      while (to < latest) {
+        await this.syncSwaps(to);
+        to += batchSize;
+      }
+      await this.syncSwaps(latest);
+      console.log(`crawlSwap done: fromBlock ${fromBlock}, toBlock ${latest}`);
+    } catch (error) {
+      console.log(error);
+      await sleep(30000);
+      await this.crawlSwap(this.crawledBlock + 1, toBlock, batchSize);
+    }
+  }
+
+  async main() {
+    await this.warmup();
+
+    let latest = await web3.eth.getBlockNumber();
+    const fromBlock = this.crawledBlock + 1;
+    await this.crawlSwap(fromBlock, latest);
+
+    console.log(`Swap: data synced to block latest ${latest}`);
+    setInterval(async () => {
+      latest = await web3.eth.getBlockNumber();
+      await this.syncSwaps(latest);
+    }, 30000);
   }
 }
 
-require("dotenv").config();
-const connectDB = require("../db/connect");
-
-async function main(){
-  const startMs = Date.now();
-
-  const conn = await connectDB(process.env.MONGODB_URI);
-  console.log(`db connected!`);
-  conn.connection.on("disconnected", ()=>{
-    console.log('db disconnected!');
-  })
-
-  let latest = await web3.eth.getBlockNumber();
-  console.log(latest);
-
-  const swapInstance = new Swap();
-  swapInstance.warmup(latest - 1);
-  swapInstance.syncSwaps(latest);
-
-  const ms = Date.now() - startMs;
-  console.log(`time spent ${ms}`);
-}
-
-main();
+module.exports = Swap;

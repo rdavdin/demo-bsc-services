@@ -108,7 +108,7 @@ class Pair {
     await this.storeTokens(newTokens);
 
     this.crawledBlock = toBlock;
-    console.log(`this.crawledBlock updated ${this.crawledBlock}`);
+    console.log(`Pair: crawledBlock updated: ${this.crawledBlock}`);
   }
 
   async storeTokens(tokens) {
@@ -176,13 +176,11 @@ class Pair {
       this.crawledBlock = fromBlock - 1;
       const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
       let to = fromBlock + batchSize;
-
       while (to < latest) {
         await this.syncPairs(to);
         to += batchSize;
       }
       await this.syncPairs(latest);
-
       console.log(`crawlPair done: fromBlock ${fromBlock}, toBlock ${latest}`);
     } catch (error) {
       console.log(error);
@@ -198,6 +196,7 @@ class Pair {
     const fromBlock = this.crawledBlock + 1;
     await this.crawlPair(fromBlock, latest);
 
+    console.log(`Pair: data synced to block latest ${latest}`);
     setInterval(async () => {
       latest = await web3.eth.getBlockNumber();
       await this.syncPairs(latest);

@@ -22,12 +22,12 @@ app.get('/api/v1/token/:token', (req, res) => {
     return;
   }
     
-  res.json({ token });
+  res.status(200).json({ token });
 })
 
 app.get('/api/v1/token/tokens/:tokens', (req, res) => {
   const tokens = req.params.tokens.split(',');
-  res.json({tokens: tokenSync.getTokens(tokens)});
+  res.status(200).json({tokens: tokenSync.getTokens(tokens)});
 })
 
 //FIXME: who can post tokens?

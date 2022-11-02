@@ -31,8 +31,7 @@ const SwapSchema = new mongoose.Schema({
   },
   txHash: {
     type: String,
-    required: [true, "Please provide txHash"],
-    unique: true
+    required: [true, "Please provide txHash"]
   },
   priceUSD: {
     type: String

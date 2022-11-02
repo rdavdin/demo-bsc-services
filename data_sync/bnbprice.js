@@ -27,7 +27,7 @@ class BNBPrice {
     };
 
     do {
-      if(this.wbnbBusd[blockNumber]) return {price: this.wbnbBusd[blockNumber]};
+      if(this.wbnbBusd[blockNumber]) return this.wbnbBusd[blockNumber];
       blockNumber--;
     } while (this.trackedMinBlock < blockNumber);
 
@@ -94,26 +94,27 @@ class BNBPrice {
     console.log(`logs.length ${logs.length}`);
 
     let syncedBlock = fromBlock - 1;
-    logs.forEach(async (log) => {
-      if(syncedBlock == log.blockNumber) return;
+    for(let i = 0; i < logs.length; i++){
+      const log = logs[i];
+      if(syncedBlock == log.blockNumber) continue;
+
       const amounts = web3.eth.abi.decodeParameters(['uint256', 'uint256', 'uint256', 'uint256'], log.data);
       const price = this.calPrice(amounts);
       if(price){
-        syncedBlock = log.blockNumber;
         //TODO: consider collect a batch then insertMany ?
-        await WbnbBusdModel.create({
-          blockNumber: log.blockNumber, 
-          price: price
+        WbnbBusdModel.create({blockNumber: log.blockNumber, price: price}, (err)=>{
+          if(err) console.log(`Error create a document BnbBusd: ${err.code}`);
         });
+        syncedBlock = log.blockNumber;
         this.wbnbBusd[log.blockNumber] = price;
         if(this.trackedMinBlock > log.blockNumber) this.trackedMinBlock = log.blockNumber;
       }
-    });
-
+    }
+    
     this.crawledBlock = toBlock;
-    console.log(`this.crawledBlock updated ${this.crawledBlock}`);
+    console.log(`Bnbprice: crawledBlock updated: ${this.crawledBlock}`);
   }
-
+  
   async crawlWbnbBusd(fromBlock, toBlock, batchSize = 1000){
     try {
       this.crawledBlock = fromBlock - 1;
@@ -140,6 +141,7 @@ class BNBPrice {
     const fromBlock = this.crawledBlock + 1;
     await this.crawlWbnbBusd(fromBlock, latest, batchSize);
 
+    console.log(`BNBPrice: data synced to block latest ${latest}`);
     setInterval(async () => {
       latest = await web3.eth.getBlockNumber();
       await this.syncWbnbBusd(latest);

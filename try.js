@@ -70,73 +70,82 @@ const web3 = new Web3('https://rpc.ankr.com/bsc');
 
 
 // How to decode parameters from data
-// const {getNumber, getPrice} = require('./utils/format')
-// const toBN = web3.utils.toBN;
-// const isBN = web3.utils.isBN;
-// const decimal = '18';
+const BigNumber = require('bignumber.js');
+const {getNumber, getPrice} = require('./utils/format')
+const toBN = web3.utils.toBN;
+const isBN = web3.utils.isBN;
+const decimal = '18';
 
-// const obj = {
-//   pair: '0x8db185761fd04433d37124b68ae4a47fb2bd55c0',
-//   base: '0x6679eb24f59dfe111864aec72b443d1da666b360',	//ARV Token : 8
-//   quote: '0xe9e7cea3dedca5984780bafc599bd69add087d56', //BUSD : 18
-//   blockNumber: 22506418,
-//   txHash: '0x7dacc6cc04346ae63432ec2143ccf29a7e498c3799a1c0c8fa8a9a259b9da965',
-//   isBuy: false,
-//   baseAmount: '6500000000000',
-//   quoteAmount: '8264691960856288140',
-//   priceUSD: 1271491.07090096
-// }
+let obj = {
+  pair: '0x8db185761fd04433d37124b68ae4a47fb2bd55c0',
+  base: '0x6679eb24f59dfe111864aec72b443d1da666b360',	//ARV Token : 8
+  quote: '0xe9e7cea3dedca5984780bafc599bd69add087d56', //BUSD : 18
+  blockNumber: 22506418,
+  txHash: '0x7dacc6cc04346ae63432ec2143ccf29a7e498c3799a1c0c8fa8a9a259b9da965',
+  isBuy: false,
+  baseAmount: '6500000000000',
+  quoteAmount: '8264691960856288140',
+  priceUSD: 1271491.07090096,
+  decimalB: 8,
+  decimalQ: 18
+}
 
-// let price = parseInt(toBN(obj.quoteAmount).mul(toBN('100000000')).div(toBN(obj.baseAmount)))/(10**8);
-// console.log('priceBn', getPrice(price, 8, 18));
+obj = {
+  "_id": {
+    "$oid": "635fd6062eeee036a460010a"
+  },
+  "pair": "0x66babd248c9bc3834267c7714bd89a6e32b5cd14",
+  "base": "0xc275dddbd0aa7d8be23d98992a5b7819c3115917",
+  "quote": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+  "baseAmount": "268598078843237005350847604864",
+  "quoteAmount": "200000000000000000",
+  "isBuy": true,
+  "blockNumber": 22455950,
+  "txHash": "0xc2e34759cd48117c3886438b83a1a2950409b4b4956af262d8dea49c558272b7",
+  "priceUSD": "0",
+  "__v": 0
+}
 
-// let total = 0;
-// let errorCount = 0;
-// function process(){
-//   console.log('start process');
-//   try {
-//     const step = 10;
-//     let skip = total;
-//     console.log(skip, total);
-//     if(errorCount < 2){
-//       throw new Error("hehe ");
-//     }
-//     skip += step;
-//     total = skip;
-//   } catch (error) {
-//     errorCount++;
-//     console.log('catch error and call again ', errorCount);
-//     process();
-//     return;
-//   }
-//   console.log('before setTimeout');
-//   setTimeout(() => {
-//     process();
-//   }, 1000);
-//   console.log('end process ', errorCount);
-// }
+obj.decimalB = 6;
+obj.decimalQ = 18;
 
-// function main(){
-//   console.log('start main');
-//   process();
-//   console.log('end!');
-// }
-// main();
+//Step 1: calculate price just based on the amounts of base and quote, don't care to decimals
+//Step 2: use getPrice to convert to real price
 
+/**
+ * return: {n0p1: price} : n token0 per 1 token1? e.g: 0.24343 token0 per 1 token1
+  * @param {Number} decimal0, decimal1, n
+  * @param {string} amount0, amount1 
+ */
+function calPriceBK(amount0, amount1, decimal0, decimal1){
+  if(toBN(amount1).isZero()) return 0;
+  const f = 8;
+  const n = (amount1.length + f) < amount0.length ? 0 : amount1.length + f - amount0.length;
 
-// async function test(){
-//   const address = "0x8935daecF659B32b2c3a18C561b31074D73e11F7";
+  const n0p1 = parseInt(toBN(amount0).mul(toBN('1'.padEnd(n+1,'0'))).div(toBN(amount1)))/Math.pow(10, n);
+  return getPrice(n0p1, decimal1, decimal0);
+}
 
-//   try {
-//     const code = await web3.eth.getCode(address, 'latest');
-//     if(code){
-//       console.log(code);
-//     }else{
-//       console.log("cannot find code");
-//     }
-//   } catch (error) {
-//     console.log(error);
-//   }
-// }
+/**
+ * return: 1 token0 = n token1? e.g: 1 token0 per 0.24343 token1
+ * @param {string} amount0
+ * @param {string} amount1
+ * @param {Number} decimal0
+  * @param {Number} decimal1
+ */
+ const calPrice = (amount0, amount1, decimal0, decimal1) =>{
+  if(toBN(amount0).isZero()) return 0;
+  const f = 8;
+  const n = (amount0.length + f) < amount1.length ? 0 : amount0.length + f - amount1.length;
 
-// test();
+  const n1p0 = parseInt(toBN(amount1).mul(toBN('1'.padEnd(n+1,'0'))).div(toBN(amount0)))/Math.pow(10, n);
+  return getPrice(n1p0, decimal0, decimal1);
+}
+
+const rs1 = calPrice(obj.baseAmount, obj.quoteAmount, obj.decimalB, obj.decimalQ);
+const rs2 = calPrice(obj.quoteAmount, obj.baseAmount, obj.decimalQ, obj.decimalB);
+console.log(`1 base ~ ${rs1} quote`);
+console.log(`1 quote ~ ${rs2} base`);
+
+const priceUSD = rs1*310;
+console.log(priceUSD);
