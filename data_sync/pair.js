@@ -4,7 +4,7 @@ const {
   getFactory,
   isUSDType,
   isWBNB,
-} = require("./utils");
+} = require("./bsc");
 const PairModel = require("../models/Pair");
 const Web3 = require("web3");
 const axios = require("axios");

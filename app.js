@@ -30,7 +30,7 @@ const start = async () => {
   try {
     const startMs = Date.now();
 
-    await connectDB(process.env.MONGODB_URI);
+    //await connectDB(process.env.MONGODB_URI);
 
     app.listen(port, () => {
       const ms = Date.now() - startMs;

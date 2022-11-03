@@ -2,7 +2,7 @@
 /**
  * exchange base and quote of pairs with quote not an USD type, but base be
  */
-const {isUSDType, getQuoteName} = require('../data_sync/utils')
+const {isUSDType, getQuoteName} = require('../data_sync/bsc')
 const PairModel = require('../models/Pair');
 
 const quoteTokens = {
@@ -20,25 +20,16 @@ async function main(){
     await connectDB(process.env.MONGODB_URI);
     console.log(`db connected!`);
 
-    // const pairs = await PairModel.find({ $or: [{base: {$eq: quoteTokens.BUSD}}, {base: {$eq: quoteTokens.USDC}}, {base: {$eq: quoteTokens.USDT}}] });
+    const pairs = await PairModel.find({ $or: [{base: {$eq: quoteTokens.BUSD}}, {base: {$eq: quoteTokens.USDC}}, {base: {$eq: quoteTokens.USDT}}] });
     
-    // pairs.forEach(async pair => {
-    //   if(!isUSDType(pair.quote)){
-    //     console.log(pair.address);
-    //     [pair.base, pair.quote] = [pair.quote, pair.base];
-    //     await PairModel.findOneAndUpdate({address: pair.address}, pair, {new : true, runValidators: true});
-    //   }
-    // })
+    pairs.forEach(async pair => {
+      if(!isUSDType(pair.quote)){
+        console.log(pair.address);
+        [pair.base, pair.quote] = [pair.quote, pair.base];
+        await PairModel.findOneAndUpdate({address: pair.address}, pair, {new : true, runValidators: true});
+      }
+    })
 
-    const dbPairs = await PairModel.find({}).sort('numberBlock').select('address base quote blockNumber');
-    if(dbPairs.length > 1){
-      const p0 = dbPairs[0];
-      const pl = dbPairs[dbPairs.length - 1];
-
-      console.log(p0, pl);
-    }
-
-    
     console.log(`The end after ${Date.now() - startMs}  ms`);
   } catch (error) {
     console.log(error);

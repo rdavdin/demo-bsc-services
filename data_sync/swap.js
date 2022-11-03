@@ -1,4 +1,4 @@
-const { isQuote, getQuoteName, isWBNB } = require('./utils');
+const { isQuote, getQuoteName, isWBNB } = require('./bsc');
 const {getNumber, getPrice} = require('../utils/format');
 const axios = require('axios');
 const SwapModel = require('../models/Swap');

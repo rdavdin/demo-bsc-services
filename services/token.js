@@ -21,7 +21,6 @@ app.get('/api/v1/token/:token', (req, res) => {
     res.status(404).json({msg: `cannot find token with id ${req.params.token}`});
     return;
   }
-    
   res.status(200).json({ token });
 })
 
