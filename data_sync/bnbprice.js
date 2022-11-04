@@ -13,10 +13,11 @@ const toBN = web3.utils.toBN;
 
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+const STARTING_BLOCK = 21450127;  //just crawl from this block
 
 class BNBPrice {
   constructor(){
-    this.crawledBlock = -1;
+    this.crawledBlock = STARTING_BLOCK - 1;
     this.trackedMinBlock = Number.MAX_VALUE;
     this.wbnbBusd = {};
   }
