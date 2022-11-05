@@ -20,10 +20,11 @@ const PAIR_CREATED_TOPIC = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cdde
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const STARTING_BLOCK = 6810423;
 
 class Pair {
   constructor() {
-    this.crawledBlock = -1;
+    this.crawledBlock = 6810423-1;
     this.pairs = {};
   }
 
@@ -171,7 +172,7 @@ class Pair {
     return obj;
   }
 
-  async crawlPair(fromBlock, toBlock, batchSize = 500) {
+  async crawlPair(fromBlock, toBlock, batchSize = 100) {
     try {
       this.crawledBlock = fromBlock - 1;
       const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
