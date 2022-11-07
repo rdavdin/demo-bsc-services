@@ -12,9 +12,29 @@ const axios = require("axios");
 const TOKEN_API_URL = "http://localhost:3003/api/v1/token";
 
 const web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1
-// const web3 = new Web3("https://bsc-dataseed1.ninicoin.io"); //for process2
-// const web3 = new Web3("https://binance.nodereal.io"); //for process3
-// const web3 = new Web3("https://bscrpc.com"); //for testing
+
+const rpcList = [
+  "https://rpc.ankr.com/bsc",
+  "https://bsc-dataseed1.binance.org",
+  "https://bsc-dataseed2.defibit.io",
+  "https://bsc-dataseed1.defibit.io",
+  "https://bsc-dataseed3.ninicoin.io",
+  "https://bsc-dataseed4.binance.org",
+  "https://bsc-dataseed4.ninicoin.io",
+  "https://bsc-dataseed3.binance.org",
+  "https://bsc-dataseed2.binance.org",
+  "https://bsc-dataseed.binance.org",
+  "https://bsc-dataseed3.defibit.io",
+];
+let currentUrp = 0;
+let rpcMs = 0;
+
+function changeRpc(){
+  rpcMs = Date.now();
+  currentUrp++;
+  if(currentUrp == rpcList.length) currentUrp = 0;
+  web3 = new Web3(rpcList[currentUrp]);
+}
 
 const PAIR_CREATED_TOPIC = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9";
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
@@ -172,7 +192,7 @@ class Pair {
     return obj;
   }
 
-  async crawlPair(fromBlock, toBlock, batchSize = 500) {
+  async crawlPair(fromBlock, toBlock, batchSize = 1000) {
     try {
       this.crawledBlock = fromBlock - 1;
       const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
@@ -185,7 +205,11 @@ class Pair {
       console.log(`crawlPair done: fromBlock ${fromBlock}, toBlock ${latest}`);
     } catch (error) {
       console.log(error);
-      await sleep(30000);
+      rpcMs = Date.now() - rpcMs;
+      if(rpcMs < 30000){
+        await sleep(30000 - rpcMs);
+      }
+      changeRpc();
       await this.crawlPair(this.crawledBlock + 1, toBlock, batchSize);
     }
   }
@@ -193,6 +217,7 @@ class Pair {
   async main() {
     await this.warmup();
 
+    rpcMs = Date.now();
     let latest = await web3.eth.getBlockNumber();
     const fromBlock = this.crawledBlock + 1;
     await this.crawlPair(fromBlock, latest);
