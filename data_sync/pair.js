@@ -172,7 +172,7 @@ class Pair {
     return obj;
   }
 
-  async crawlPair(fromBlock, toBlock, batchSize = 100) {
+  async crawlPair(fromBlock, toBlock, batchSize = 500) {
     try {
       this.crawledBlock = fromBlock - 1;
       const latest = toBlock ? toBlock : await web3.eth.getBlockNumber();
