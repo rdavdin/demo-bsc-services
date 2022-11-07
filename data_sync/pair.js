@@ -11,6 +11,7 @@ const axios = require("axios");
 
 const TOKEN_API_URL = "http://localhost:3003/api/v1/token";
 
+const batchSize = 1000;
 let web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1
 
 const rpcList = [
@@ -218,11 +219,16 @@ class Pair {
     await this.warmup();
 
     rpcMs = Date.now();
+    let isLoop = false;
     let latest = await web3.eth.getBlockNumber();
-    const fromBlock = this.crawledBlock + 1;
-    await this.crawlPair(fromBlock, latest);
-
+    do {
+      const fromBlock = this.crawledBlock + 1;
+      await this.crawlPair(fromBlock, latest);
+      latest = await web3.eth.getBlockNumber();
+      isLoop = (latest - this.crawledBlock) > batchSize ? true : false;
+    } while (isLoop);
     console.log(`Pair: data synced to block latest ${latest}`);
+    
     setInterval(async () => {
       latest = await web3.eth.getBlockNumber();
       await this.syncPairs(latest);
