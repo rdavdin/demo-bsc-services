@@ -11,7 +11,7 @@ const axios = require("axios");
 
 const TOKEN_API_URL = "http://localhost:3003/api/v1/token";
 
-const web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1
+let web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1
 
 const rpcList = [
   "https://rpc.ankr.com/bsc",
