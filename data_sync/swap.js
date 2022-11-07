@@ -35,7 +35,7 @@ const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v1/pairs`
 const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v1/price`;
 const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v1/token`;
 const STARTING_BLOCK = 22453433;
-const batchSize = 20;
+const batchSize = 100;
 
 const toBN = web3.utils.toBN;
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
@@ -285,7 +285,7 @@ class Swap {
     let latest = await web3.eth.getBlockNumber();
     do {
       const fromBlock = this.crawledBlock + 1;
-      await this.crawlSwap(fromBlock, latest);
+      await this.crawlSwap(fromBlock, latest, batchSize);
       latest = await web3.eth.getBlockNumber();
       isLoop = (latest - this.crawledBlock) > batchSize ? true : false;
     } while (isLoop);
