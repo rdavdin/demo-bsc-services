@@ -5,11 +5,37 @@ const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
 const web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
 
-const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
+const rpcList = [
+  "https://bsc-dataseed1.ninicoin.io",
+  "https://bsc-dataseed1.binance.org",
+  "https://bsc-dataseed2.defibit.io",
+  "https://bsc-dataseed1.defibit.io",
+  "https://bsc-dataseed3.ninicoin.io",
+  "https://bsc-dataseed4.binance.org",
+  "https://bsc-dataseed4.ninicoin.io",
+  "https://bsc-dataseed3.binance.org",
+  "https://bsc-dataseed2.binance.org",
+  "https://bsc-dataseed.binance.org",
+  "https://bsc-dataseed3.defibit.io",
+];
+let currentUrp = 0;
+let rpcMs = 0;
 
+function changeRpc(){
+  rpcMs = Date.now();
+  currentUrp++;
+  if(currentUrp == rpcList.length) currentUrp = 0;
+  web3 = new Web3(rpcList[currentUrp]);
+}
+
+
+
+const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
 const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v1/pairs`;//"http://localhost:3001/api/v1/pairs";
 const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v1/price`;
 const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v1/token`;
+const STARTING_BLOCK = 22453433;
+const batchSize = 20;
 
 const toBN = web3.utils.toBN;
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
@@ -32,7 +58,7 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 }
 class Swap {
   constructor(){
-    this.crawledBlock = -1;
+    this.crawledBlock = STARTING_BLOCK;
   }
 
   /**
@@ -51,9 +77,11 @@ class Swap {
         swaps = await SwapModel.find({base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
         return await this.calTsInfo(tokenInfo, swaps);
       }else{
-        const startMs = Date.now();
+        //const startMs = Date.now();
+        console.time(`time query token ${address}`);
         swaps = await SwapModel.find({$or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
-        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        //console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        console.timeEnd(`time query token ${address}`);
         return await this.calTsInfo(tokenInfo, swaps, false);
       }
     } catch (error) {
@@ -85,7 +113,7 @@ class Swap {
   }
 
   async warmup(){
-    const d = await SwapModel.findOne({}).sort({blockNumber: -1});
+    const d = undefined; //await SwapModel.findOne({}).sort({blockNumber: -1});
     if(d) {
       console.log(`warmup: from block ${d.blockNumber}`);
       this.crawledBlock = d.blockNumber;
@@ -241,17 +269,26 @@ class Swap {
       console.log(`crawlSwap done: fromBlock ${fromBlock}, toBlock ${latest}`);
     } catch (error) {
       console.log(error);
-      await sleep(30000);
+      rpcMs = Date.now() - rpcMs;
+      if(rpcMs < 30000){
+        await sleep(30000 - rpcMs);
+      }
+      changeRpc();
       await this.crawlSwap(this.crawledBlock + 1, toBlock, batchSize);
     }
   }
 
   async main() {
     await this.warmup();
-
+    rpcMs = Date.now();
+    let isLoop = false;
     let latest = await web3.eth.getBlockNumber();
-    const fromBlock = this.crawledBlock + 1;
-    await this.crawlSwap(fromBlock, latest);
+    do {
+      const fromBlock = this.crawledBlock + 1;
+      await this.crawlSwap(fromBlock, latest);
+      latest = await web3.eth.getBlockNumber();
+      isLoop = (latest - this.crawledBlock) > batchSize ? true : false;
+    } while (isLoop);
 
     console.log(`Swap: data synced to block latest ${latest}`);
     setInterval(async () => {
