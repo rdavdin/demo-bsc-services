@@ -3,7 +3,7 @@ const {getNumber, getPrice} = require('../utils/format');
 const axios = require('axios');
 const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
-const web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
+let web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
 
 const rpcList = [
   "https://bsc-dataseed1.ninicoin.io",
