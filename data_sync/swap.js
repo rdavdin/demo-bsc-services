@@ -113,7 +113,7 @@ class Swap {
   }
 
   async warmup(){
-    const d = undefined; //await SwapModel.findOne({}).sort({blockNumber: -1});
+    const d = await SwapModel.findOne({}).sort({blockNumber: -1});
     if(d) {
       console.log(`warmup: from block ${d.blockNumber}`);
       this.crawledBlock = d.blockNumber;
