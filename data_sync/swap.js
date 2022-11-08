@@ -35,7 +35,7 @@ const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v1/pairs`
 const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v1/price`;
 const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v1/token`;
 const STARTING_BLOCK = 22453433;
-const batchSize = 100;
+const batchSize = 200;
 
 const toBN = web3.utils.toBN;
 const GET_LOG_ERROR = 'GET_LOG_ERROR';
