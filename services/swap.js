@@ -34,7 +34,8 @@ const start = async () => {
     await connectDB(process.env.MONGODB_URI);
     console.log(`db connected!`);
 
-    await swapSync.main();
+    //TODO: comment to test, remember uncomment
+    // await swapSync.main();
 
     app.listen(port, () => {
       const ms = Date.now() - startMs;
