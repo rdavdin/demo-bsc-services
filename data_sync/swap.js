@@ -74,14 +74,14 @@ class Swap {
 
       let swaps = [];
       if(!isQuote(address)){
+        const startMs = Date.now();
         swaps = await SwapModel.find({base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
+        console.log(`time query token ${address} - ${Date.now() - startMs}`);
         return await this.calTsInfo(tokenInfo, swaps);
       }else{
-        //const startMs = Date.now();
-        console.time(`time query token ${address}`);
+        const startMs = Date.now();
         swaps = await SwapModel.find({$or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
-        //console.log(`time query token ${address} - ${Date.now() - startMs}`);
-        console.timeEnd(`time query token ${address}`);
+        console.log(`time query token ${address} - ${Date.now() - startMs}`);
         return await this.calTsInfo(tokenInfo, swaps, false);
       }
     } catch (error) {
