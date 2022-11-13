@@ -1,7 +1,7 @@
 require("dotenv").config();
 require("express-async-errors");
 const express = require("express");
-const SwapSync = require('../data_sync/swap');
+const {Swap : SwapSync, TRY_BM} = require('../data_sync/swap');
 
 const app = express();
 const swapSync = new SwapSync();
@@ -34,8 +34,11 @@ const start = async () => {
     await connectDB(process.env.MONGODB_URI);
     console.log(`db connected!`);
 
-    //TODO: comment to test, remember uncomment
-    // await swapSync.main();
+    if(TRY_BM){
+      await swapSync.warmup();
+    }else{
+      await swapSync.main();
+    }
 
     app.listen(port, () => {
       const ms = Date.now() - startMs;

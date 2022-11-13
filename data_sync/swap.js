@@ -54,6 +54,8 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
   const n1p0 = parseInt(toBN(amount1).mul(toBN('1'.padEnd(n+1,'0'))).div(toBN(amount0)))/Math.pow(10, n);
   return getPrice(n1p0, decimal0, decimal1);
 }
+
+const TRY_BM = true;
 class Swap {
   constructor(){
     this.crawledBlock = STARTING_BLOCK;
@@ -65,6 +67,7 @@ class Swap {
    */
   async getLastTs(token, n = 20){
     try {
+      const fromBlock = this.crawledBlock - parseInt(n*1000/10); //just find in the latest 1000 blocks for 10 items ...20 items --> 2000
       const address = token.toLowerCase();
       let tokenInfo = await this.getToken(address);
       if(!tokenInfo) return {status: 404, msg: `cannot get info of token ${address}`};
@@ -73,12 +76,12 @@ class Swap {
       let swaps = [];
       if(!isQuote(address)){
         const startMs = Date.now();
-        swaps = await SwapModel.find({base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
+        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}`);
         return await this.calTsInfo(tokenInfo, swaps);
       }else{
         const startMs = Date.now();
-        swaps = await SwapModel.find({$or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
+        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}`);
         return await this.calTsInfo(tokenInfo, swaps, false);
       }
@@ -296,4 +299,4 @@ class Swap {
   }
 }
 
-module.exports = Swap;
+module.exports = { Swap, TRY_BM};
