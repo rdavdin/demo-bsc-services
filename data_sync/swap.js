@@ -67,7 +67,7 @@ class Swap {
    */
   async getLastTs(token, n = 20){
     try {
-      const fromBlock = this.crawledBlock - parseInt(n*1000/10); //just find in the latest 1000 blocks for 10 items ...20 items --> 2000
+      const fromBlock = this.crawledBlock - parseInt(n*28800/10); //just find in the latest 28800 blocks (24h) for 10 items ...20 items --> 2000
       const address = token.toLowerCase();
       let tokenInfo = await this.getToken(address);
       if(!tokenInfo) return {status: 404, msg: `cannot get info of token ${address}`};
@@ -77,12 +77,12 @@ class Swap {
       if(!isQuote(address)){
         const startMs = Date.now();
         swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
-        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
         return await this.calTsInfo(tokenInfo, swaps);
       }else{
         const startMs = Date.now();
         swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
-        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
         return await this.calTsInfo(tokenInfo, swaps, false);
       }
     } catch (error) {
