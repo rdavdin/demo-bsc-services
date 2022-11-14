@@ -1,6 +1,8 @@
 const { isQuote, getQuoteName, isWBNB } = require('./bsc');
 const {getNumber, getPrice} = require('../utils/format');
 const axios = require('axios');
+const redis = require('redis');
+
 const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
 let web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
@@ -56,6 +58,15 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 }
 
 const TRY_BM = true;
+let cachedTotal = 0;
+
+let redisClient;
+(async () => {
+  redisClient = redis.createClient();
+  redisClient.on("error", (error) => console.error(`Error : ${error}`));
+  await redisClient.connect();
+})();
+
 class Swap {
   constructor(){
     this.crawledBlock = STARTING_BLOCK;
@@ -67,6 +78,13 @@ class Swap {
    */
   async getLastTs(token, n = 20){
     try {
+
+      const cacheRedis = await redisClient.get(token);
+      if(cacheRedis) {
+        console.log(`cachedTotal ${++cachedTotal}`);
+        return JSON.parse(cacheRedis);
+      }
+
       const fromBlock = this.crawledBlock - parseInt(n*28800/10); //just find in the latest 28800 blocks (24h) for 10 items ...20 items --> 2000
       const address = token.toLowerCase();
       let tokenInfo = await this.getToken(address);
@@ -74,17 +92,21 @@ class Swap {
       tokenInfo.address = address;
 
       let swaps = [];
+      let queryRs;
       if(!isQuote(address)){
         const startMs = Date.now();
         swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
-        return await this.calTsInfo(tokenInfo, swaps);
+        queryRs = await this.calTsInfo(tokenInfo, swaps);
       }else{
         const startMs = Date.now();
         swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
-        return await this.calTsInfo(tokenInfo, swaps, false);
+        queryRs = await this.calTsInfo(tokenInfo, swaps, false);
       }
+
+      await redisClient.set(token, JSON.stringify(queryRs), {EX: 30, NX: true});
+      return queryRs;
     } catch (error) {
       return {status: 400, msg: error.message};
     }
