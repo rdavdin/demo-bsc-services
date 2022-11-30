@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm Swap Service.");
 })
 
-app.get('/api/v1/swap/:address/:n', async (req, res)=>{
+app.get('/api/v1/swap/tx/:address/:n', async (req, res)=>{
   const token = req.params.address;
   const n = req.params.n;
   const docs = await swapSync.getLastTs(token, n);
@@ -25,6 +25,30 @@ app.get('/api/v1/swap/:address/:n', async (req, res)=>{
     res.status(200).json({ txs: docs });
   }
 })
+
+app.get('/api/v1/swap/price/:address/:block', async (req, res)=>{
+  const token = req.params.address;
+  const blockNumber = req.params.block;
+  const doc = await swapSync.getPrice(token, blockNumber);
+
+  if(doc.msg){
+    res.status(400).json({msg: doc.msg});
+  }else{
+    res.status(200).json(doc);
+  }
+})
+
+app.get('/api/v1/swap/price/:address', async (req, res)=>{
+  const token = req.params.address;
+  const doc = await swapSync.getPrice(token);
+
+  if(doc.msg){
+    res.status(400).json({msg: doc.msg});
+  }else{
+    res.status(200).json(doc);
+  }
+})
+
 
 const port = process.env.SWAP_PORT || 3004;
 const start = async () => {

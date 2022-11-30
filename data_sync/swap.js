@@ -1,7 +1,7 @@
 const { isQuote, getQuoteName, isWBNB } = require('./bsc');
 const {getNumber, getPrice} = require('../utils/format');
 const axios = require('axios');
-const redis = require('redis');
+// const redis = require('redis');
 
 const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
@@ -58,34 +58,25 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 }
 
 const TRY_BM = true;
-let cachedTotal = 0;
 
-let redisClient;
-(async () => {
-  redisClient = redis.createClient();
-  redisClient.on("error", (error) => console.error(`Error : ${error}`));
-  await redisClient.connect();
-})();
+// let redisClient;
+// (async () => {
+//   redisClient = redis.createClient();
+//   redisClient.on("error", (error) => console.error(`Error : ${error}`));
+//   await redisClient.connect();
+// })();
 
 class Swap {
   constructor(){
     this.crawledBlock = STARTING_BLOCK;
   }
 
-  /**
-   * get n last transactions of a particular token
-   * @returns {priceUSD, amount, total, isBuy}
-   */
-  async getLastTs(token, n = 20){
+  async getPrice(token, blockNumber = 'latest'){
     try {
+      if(blockNumber == 'latest') {
+        blockNumber = this.crawledBlock;
+      };
 
-      const cacheRedis = await redisClient.get(token);
-      if(cacheRedis) {
-        console.log(`cachedTotal ${++cachedTotal}`);
-        return JSON.parse(cacheRedis);
-      }
-
-      const fromBlock = this.crawledBlock - parseInt(n*28800/10); //just find in the latest 28800 blocks (24h) for 10 items ...20 items --> 2000
       const address = token.toLowerCase();
       let tokenInfo = await this.getToken(address);
       if(!tokenInfo) return {status: 404, msg: `cannot get info of token ${address}`};
@@ -95,17 +86,57 @@ class Swap {
       let queryRs;
       if(!isQuote(address)){
         const startMs = Date.now();
-        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, base: address}).select('priceUSD baseAmount quoteAmount isBuy _id').sort({blockNumber: -1}).limit(n);
+        swaps = await SwapModel.find({blockNumber: {$lte: blockNumber}, base: address}).select('priceUSD baseAmount quoteAmount isBuy blockNumber _id').sort({blockNumber: -1}).limit(1);
+        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        queryRs = await this.calTsInfo(tokenInfo, swaps);
+      }else{
+        const startMs = Date.now();
+        swaps = await SwapModel.find({blockNumber: {$lte: blockNumber}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base blockNumber _id').sort({blockNumber: -1}).limit(1);
+        console.log(`time query token ${address} - ${Date.now() - startMs}`);
+        queryRs = await this.calTsInfo(tokenInfo, swaps, false);
+      }
+      if(queryRs.length){
+        const rs = queryRs[0];
+        return {priceUSD: rs.priceUSD, atBlock: rs.atBlock};
+      }else{
+        return {status: 200, msg: 'not find any transaction'};
+      }
+    } catch (error) {
+      return {status: 400, msg: error.message};
+    }
+  }
+
+  /**
+   * get n last transactions of a particular token
+   * @returns {priceUSD, amount, total, isBuy}
+   */
+  async getLastTs(token, n = 20){
+    try {
+      // const cacheRedis = await redisClient.get(token);
+      // if(cacheRedis) {
+      //   return JSON.parse(cacheRedis);
+      // }
+
+      const fromBlock = this.crawledBlock - parseInt(n*201600/10); //just find in the latest 201600 blocks (1 week) for 10 items ...
+      const address = token.toLowerCase();
+      let tokenInfo = await this.getToken(address);
+      if(!tokenInfo) return {status: 404, msg: `cannot get info of token ${address}`};
+      tokenInfo.address = address;
+
+      let swaps = [];
+      let queryRs;
+      if(!isQuote(address)){
+        const startMs = Date.now();
+        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, base: address}).select('priceUSD baseAmount quoteAmount isBuy blockNumber _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
         queryRs = await this.calTsInfo(tokenInfo, swaps);
       }else{
         const startMs = Date.now();
-        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base _id').sort({blockNumber: -1}).limit(n);
+        swaps = await SwapModel.find({blockNumber: {$gt: fromBlock}, $or: [{quote: address}, {base: address}]}).select('priceUSD baseAmount quoteAmount isBuy base blockNumber _id').sort({blockNumber: -1}).limit(n);
         console.log(`time query token ${address} - ${Date.now() - startMs}, rsLength = ${swaps.length}`);
         queryRs = await this.calTsInfo(tokenInfo, swaps, false);
       }
-
-      await redisClient.set(token, JSON.stringify(queryRs), {EX: 30, NX: true});
+      // await redisClient.set(token, JSON.stringify(queryRs), {EX: 30, NX: true});
       return queryRs;
     } catch (error) {
       return {status: 400, msg: error.message};
@@ -129,9 +160,8 @@ class Swap {
       }else{
         swap.amount = getNumber(swap.baseAmount, 8, tokenInfo.decimals);
       }
-      rs.push({priceUSD: swap.priceUSD, amount: swap.amount, isBuy: swap.isBuy})
+      rs.push({priceUSD: swap.priceUSD, amount: swap.amount, isBuy: swap.isBuy, atBlock: swap.blockNumber})
     }
-
     return rs;
   }
 
