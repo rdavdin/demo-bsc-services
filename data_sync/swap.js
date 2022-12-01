@@ -57,7 +57,7 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
   return getPrice(n1p0, decimal0, decimal1);
 }
 
-const TRY_BM = true;
+const TRY_BM = false;
 
 // let redisClient;
 // (async () => {
