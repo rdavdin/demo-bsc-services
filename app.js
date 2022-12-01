@@ -19,7 +19,7 @@ app.get('/:objects', (req, res) => {
   res.status(200).json(req.body);
 })
 
-app.post('/api/v1/token/tokens', (req, res) => {
+app.post('/api/v2/token/tokens', (req, res) => {
   console.log(req.body);
 
   res.status(200).json(req.body);

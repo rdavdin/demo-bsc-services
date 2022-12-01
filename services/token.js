@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm Token Service.");
 })
 
-app.get('/api/v1/token/:token', (req, res) => {
+app.get('/api/v2/token/:token', (req, res) => {
   const token = tokenSync.getToken(req.params.token);
   if(!token) {
     res.status(404).json({msg: `cannot find token with id ${req.params.token}`});
@@ -24,13 +24,13 @@ app.get('/api/v1/token/:token', (req, res) => {
   res.status(200).json({ token });
 })
 
-app.get('/api/v1/token/tokens/:tokens', (req, res) => {
+app.get('/api/v2/token/tokens/:tokens', (req, res) => {
   const tokens = req.params.tokens.split(',');
   res.status(200).json({tokens: tokenSync.getTokens(tokens)});
 })
 
 //FIXME: who can post tokens?
-app.post('/api/v1/token/tokens', async (req, res) => {
+app.post('/api/v2/token/tokens', async (req, res) => {
   if(req.body.tokens) await tokenSync.addTokens(req.body.tokens);
   res.json({status: 200});
 })

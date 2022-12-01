@@ -31,9 +31,9 @@ function changeRpc(){
 }
 
 const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
-const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v1/pairs`;//"http://localhost:3001/api/v1/pairs";
-const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v1/price`;
-const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v1/token`;
+const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v2/pairs`;//"http://localhost:3001/api/v2/pairs";
+const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v2/price`;
+const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v2/token`;
 const STARTING_BLOCK = 22453433;
 const batchSize = 200;
 

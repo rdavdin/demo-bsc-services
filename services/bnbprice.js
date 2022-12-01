@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm Bnbprice Service.");
 })
 
-app.get('/api/v1/price/bnbprice', (req, res) => {
+app.get('/api/v2/price/bnbprice', (req, res) => {
   const price = bnbPriceSync.getPrice();
   if(!price) {
     res.status(404).json({msg: `Cannot find bnbprice now. Pls try again later`});
@@ -24,7 +24,7 @@ app.get('/api/v1/price/bnbprice', (req, res) => {
   res.status(200).json({ price });
 })
 
-app.get('/api/v1/price/bnbprice/:blocknumber', (req, res) => {
+app.get('/api/v2/price/bnbprice/:blocknumber', (req, res) => {
   const {blocknumber} = req.params;
   const price = bnbPriceSync.getPrice(blocknumber);
 

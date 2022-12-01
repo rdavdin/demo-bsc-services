@@ -9,7 +9,7 @@ const PairModel = require("../models/Pair");
 const Web3 = require("web3");
 const axios = require("axios");
 
-const TOKEN_API_URL = "http://localhost:3003/api/v1/token";
+const TOKEN_API_URL = "http://localhost:3003/api/v2/token";
 
 const batchSize = 1000;
 let web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1

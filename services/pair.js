@@ -14,7 +14,7 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm PairService.");
 })
 
-app.get('/api/v1/pairs/:address', (req, res)=>{
+app.get('/api/v2/pairs/:address', (req, res)=>{
   const {address} = req.params;
   const pair = pairSync.getPair(address.toLowerCase());
   if(!pair) {
