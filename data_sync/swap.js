@@ -5,20 +5,20 @@ const axios = require('axios');
 
 const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
-let web3 = new Web3("https://bsc-dataseed1.ninicoin.io");
+let web3 = new Web3("https://bsc-mainnet.public.blastapi.io");
 
 const rpcList = [
-  "https://bsc-dataseed1.ninicoin.io",
-  "https://bsc-dataseed1.binance.org",
-  "https://bsc-dataseed2.defibit.io",
-  "https://bsc-dataseed1.defibit.io",
-  "https://bsc-dataseed3.ninicoin.io",
-  "https://bsc-dataseed4.binance.org",
+  "https://bsc-mainnet.public.blastapi.io",
+  "https://bscrpc.com",
   "https://bsc-dataseed4.ninicoin.io",
-  "https://bsc-dataseed3.binance.org",
-  "https://bsc-dataseed2.binance.org",
+  "https://bsc-dataseed1.ninicoin.io",
   "https://bsc-dataseed.binance.org",
-  "https://bsc-dataseed3.defibit.io",
+  "https://bsc.mytokenpocket.vip",
+  "https://binance.nodereal.io",
+  "https://bsc-dataseed2.binance.org",
+  "https://rpc.ankr.com/bsc",
+  "https://rpc-bsc.bnb48.club",
+  "https://1rpc.io/bnb"
 ];
 let currentUrp = 0;
 let rpcMs = 0;
