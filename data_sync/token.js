@@ -15,7 +15,6 @@ const writeStream = fs.createWriteStream(filePath, {flags: 'a'});
 const sleep = (ms) => new Promise(res => setTimeout(res, ms));
 
 const write = (data) => new Promise((res, rej) => {
-  //console.log(`$inside writing... `);
   writeStream.write(data, (err)=>{
     if(err) rej(err);
     res();
@@ -23,37 +22,14 @@ const write = (data) => new Promise((res, rej) => {
 })
 class Token {
   constructor() {
-    this.tokens = {};
     this.invalidTokens = {};
-  }
-
-  updateTokenList(token) {
-    if (!this.tokens[token.address])
-      this.tokens[token.address] = {
-        symbol: token.symbol,
-        name: token.name,
-        decimals: token.decimals,
-      };
   }
 
   async warmup() {
     const startMs = Date.now();
     
-    const totalDocs = await TokenModel.estimatedDocumentCount();
-    let totalSkip = 0;
-    const step = 100000;
-    do {
-      console.log('totalSkip ', totalSkip);
-      const tokens = await TokenModel.find({}).limit(step).skip(totalSkip);
-      tokens.forEach((token) => {
-        this.updateTokenList(token);
-      });
-      totalSkip += step;
-    } while (totalSkip < totalDocs);
-
     const lr = new LineByLine(filePath);
     lr.on('line', (line)=>{
-      //console.log(line);
       this.invalidTokens[line] = true;
     });
     
@@ -66,17 +42,23 @@ class Token {
     })
   }
 
-  getToken(address) {
-    return this.tokens[address];
+  async getToken(address) {
+    const token = await TokenModel.findOne({address: address}).select('address symbol name decimals -_id');
+    return token;
   }
 
-  getTokens(addresses) {
-    return addresses.map((a) => this.tokens[a]);
+  async getTokens(addresses) {
+    const tokens = await TokenModel.find({address: {$in: addresses}}).select('address symbol name decimals -_id');
+    return tokens
   }
 
   async addTokens(addresses){
-    addresses = addresses.filter((t) => !this.tokens[t] && !this.invalidTokens[t]);
-
+    addresses = addresses.filter((a) => !this.invalidTokens[a]);
+    const tokens = await TokenModel.find({address: {$in: addresses}}).select('address -_id');
+    if(tokens.length){
+      const mapTokens = tokens.map((a) => a.address);
+      addresses = addresses.filter((a) => !mapTokens.includes(a));
+    }
     let fAddresses = [];
     for(let i = 0; i < addresses.length; i++){
       if(!fAddresses.find((a) => a == addresses[i])){
@@ -84,7 +66,6 @@ class Token {
       }
     }
     if(!fAddresses.length) return;
-  
     try {
       const rs = await multiget.methods.getMulti(fAddresses).call();
       await this.storeTokens(rs, fAddresses);
@@ -120,21 +101,17 @@ class Token {
         name: rs.names[i],
       };
       tokensInfo.push(newToken);
-      this.updateTokenList(newToken);
     }
-  
     if(!tokensInfo.length) return;
-    
     try {
       await TokenModel.insertMany(tokensInfo, { ordered: false });
     } catch (error) {
-      if(error.code === 11000){ //ignore duplicate
+      if(error.code === 11000){
         console.log(`Ignore duplicate error`);
       }else{
         console.log(`Error insertMany ${error}`);
-        await sleep(3000);
-        await TokenModel.insertMany(tokensInfo, {ordered: false});
-        console.log('insertMany again after 3s successfully');
+        console.log(`the inserted batch: `);
+        console.log({tokensInfo});
       }
     }
   }

@@ -15,8 +15,8 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm Token Service.");
 })
 
-app.get('/api/v2/token/:token', (req, res) => {
-  const token = tokenSync.getToken(req.params.token);
+app.get('/api/v2/token/:token', async (req, res) => {
+  const token = await tokenSync.getToken(req.params.token);
   if(!token) {
     res.status(404).json({msg: `cannot find token with id ${req.params.token}`});
     return;
@@ -24,9 +24,9 @@ app.get('/api/v2/token/:token', (req, res) => {
   res.status(200).json({ token });
 })
 
-app.get('/api/v2/token/tokens/:tokens', (req, res) => {
+app.get('/api/v2/token/tokens/:tokens', async (req, res) => {
   const tokens = req.params.tokens.split(',');
-  res.status(200).json({tokens: tokenSync.getTokens(tokens)});
+  res.status(200).json({tokens: await tokenSync.getTokens(tokens)});
 })
 
 //FIXME: who can post tokens?
@@ -40,7 +40,7 @@ const start = async () => {
   try {
     const startMs = Date.now();
 
-    await connectDB(process.env.MONGODB_URI);
+    await connectDB(process.env.MONGODB_URI_ADEX);
     console.log(`db connected!`);
 
     await tokenSync.main();    
