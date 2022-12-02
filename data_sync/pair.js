@@ -45,40 +45,19 @@ const STARTING_BLOCK = 6810423;
 
 class Pair {
   constructor() {
-    this.crawledBlock = 6810423-1;
-    this.pairs = {};
+    this.crawledBlock = STARTING_BLOCK-1;
   }
 
-  getPair(pair) {
-    return this.pairs[pair];
+  async getPair(address) {
+    address = address.toLowerCase();
+    const pair = await PairModel.findOne({address: address}).select('address base quote -_id');
+    return pair;
   }
 
   async warmup() {
-    console.log('warmup start');
     const startMs = Date.now();
-    const totalDocs = await PairModel.estimatedDocumentCount();
-    let totalSkip = 0;
-    const step = 100000;
-    do {
-      console.log('totalSkip ', totalSkip);
-      const dbPairs = await PairModel.find({})
-        .sort("numberBlock")
-        .select("address base quote blockNumber")
-        .limit(step)
-        .skip(totalSkip);
-
-      dbPairs.forEach((p) => {
-        if (this.crawledBlock < p.blockNumber)
-          this.crawledBlock = p.blockNumber;
-        this.pairs[p.address] = {
-          pair: p.address,
-          base: p.base,
-          quote: p.quote,
-        };
-      });
-      totalSkip += step;
-    } while (totalSkip < totalDocs);
-
+    const pair = await PairModel.find().sort({blockNumber:-1}).limit(1);
+    if(pair[0]) this.crawledBlock = pair[0].blockNumber;
     console.log(
       `warmup end - ${Date.now() - startMs} ms! crawledBlock ${
         this.crawledBlock
@@ -105,20 +84,15 @@ class Pair {
       throw error;
     }
     const filteredLogs = pairLogs.filter((log) => isSupportFactory(log.address));
-    console.log(
-      `pairLogs.length ${pairLogs.length}, filteredLogs.length ${filteredLogs.length}`
-    );
+    // console.log(
+    //   `pairLogs.length ${pairLogs.length}, filteredLogs.length ${filteredLogs.length}`
+    // );
 
     let pairBatch = [];
     let newTokens = [];
     for (let i = 0; i < filteredLogs.length; i++) {
       const obj = this.createPair(filteredLogs[i]);
       if (!obj) continue;
-      this.pairs[obj.address] = {
-        pair: obj.address,
-        base: obj.base,
-        quote: obj.quote,
-      };
       pairBatch.push(obj);
       if (!newTokens.find((t) => t == obj.base)) newTokens.push(obj.base);
     }
@@ -148,10 +122,9 @@ class Pair {
       if(error.code === 11000){ //ignore duplicate
         console.log(`Ignore duplicate error`);
       }else{
-        console.log(`Error insertMany ${error}`);
-        await sleep(3000);
-        await this.storeDb(pairBatch);
-        console.log('storeDb again after 3s successfully');
+        console.log(`Pair: Error insertMany ${error}`);
+        console.log(`the inserted batch `);
+        console.log({pairBatch});
       }
     }
   }
@@ -174,7 +147,7 @@ class Pair {
       txHash: log.transactionHash,
     };
 
-    //just support quote tokens USDT types and WBNB
+    //just support quote tokens USD types and WBNB
     if (isUSDType(token0)) {
       obj.base = token1;
       obj.quote = token0;

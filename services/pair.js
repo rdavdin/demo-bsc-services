@@ -14,9 +14,9 @@ app.get('/', (req, res) => {
   res.send("Hello! I'm PairService.");
 })
 
-app.get('/api/v2/pairs/:address', (req, res)=>{
+app.get('/api/v2/pairs/:address', async (req, res)=>{
   const {address} = req.params;
-  const pair = pairSync.getPair(address.toLowerCase());
+  const pair = await pairSync.getPair(address);
   if(!pair) {
     res.status(404).json({msg: `cannot find token with id ${address}`});
     return;

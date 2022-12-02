@@ -14,9 +14,6 @@ const PairSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please provide quote token"],
   },
-  baseName: {
-    type: String
-  },
   factory: {
     type: String,
     required: [true, "Please provide address of factory"]
