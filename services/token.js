@@ -40,7 +40,7 @@ const start = async () => {
   try {
     const startMs = Date.now();
 
-    await connectDB(process.env.MONGODB_URI_ADEX);
+    await connectDB(process.env.MONGODB_URI);
     console.log(`db connected!`);
 
     await tokenSync.main();    
