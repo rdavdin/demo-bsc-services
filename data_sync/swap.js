@@ -5,10 +5,9 @@ const axios = require('axios');
 
 const SwapModel = require('../models/Swap');
 const Web3 = require('web3');
-let web3 = new Web3("https://bsc-mainnet.public.blastapi.io");
+let web3 = new Web3("https://bscrpc.com");
 
 const rpcList = [
-  "https://bsc-mainnet.public.blastapi.io",
   "https://bscrpc.com",
   "https://bsc-dataseed4.ninicoin.io",
   "https://bsc-dataseed1.ninicoin.io",
@@ -31,9 +30,9 @@ function changeRpc(){
 }
 
 const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822';
-const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v2/pairs`;//"http://localhost:3001/api/v2/pairs";
+const PAIR_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v2/pairs`;
 const BNB_PRICE_URL = `${process.env.HOST}:${process.env.BNBPRICE_PORT}/api/v2/price`;
-const TOKEN_API_URL = `${process.env.HOST}:${process.env.TOKEN_PORT}/api/v2/token`;
+const TOKEN_API_URL = `${process.env.HOST}:${process.env.PAIR_PORT}/api/v2/token`;
 const STARTING_BLOCK = 22453433;
 const batchSize = 200;
 
@@ -241,7 +240,7 @@ class Swap {
       const obj = this.createSwapObj(aPair, aBase, log, bnbPrice);
       if(obj) swapBatch.push(obj);
     }
-    //console.log(swapBatch);
+    // console.log({swapBatch});
     await this.storeDb(swapBatch);
 
     this.crawledBlock = toBlock;
@@ -272,7 +271,7 @@ class Swap {
     if(in0 != '0' && in1 != '0') return undefined;
 
     let obj = {
-      pair: aPair.pair,
+      pair: aPair.address,
       base: aPair.base,
       quote: aPair.quote,
       blockNumber: log.blockNumber,

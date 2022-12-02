@@ -35,7 +35,7 @@ class Token {
     
     return new Promise((res, rej)=>{
       lr.on('end', ()=>{
-        console.log(`warmup done! - ${Date.now() - startMs} ms`);
+        console.log(`Token: warmup done! - ${Date.now() - startMs} ms`);
         res();
       });
       lr.on('error', err => rej(err));
@@ -43,16 +43,19 @@ class Token {
   }
 
   async getToken(address) {
+    address = address.toLowerCase();
     const token = await TokenModel.findOne({address: address}).select('address symbol name decimals -_id');
     return token;
   }
 
   async getTokens(addresses) {
+    addresses = addresses.map((a) => a.toLowerCase());
     const tokens = await TokenModel.find({address: {$in: addresses}}).select('address symbol name decimals -_id');
     return tokens
   }
 
   async addTokens(addresses){
+    addresses = addresses.map((a) => a.toLowerCase());
     addresses = addresses.filter((a) => !this.invalidTokens[a]);
     const tokens = await TokenModel.find({address: {$in: addresses}}).select('address -_id');
     if(tokens.length){
