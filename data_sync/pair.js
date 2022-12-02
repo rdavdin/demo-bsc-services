@@ -6,10 +6,8 @@ const {
   isWBNB,
 } = require("./bsc");
 const PairModel = require("../models/Pair");
+const TokenSync = require('./token');
 const Web3 = require("web3");
-const axios = require("axios");
-
-const TOKEN_API_URL = "http://localhost:3003/api/v2/token";
 
 const batchSize = 1000;
 let web3 = new Web3("https://rpc.ankr.com/bsc");  //for process1
@@ -46,6 +44,7 @@ const STARTING_BLOCK = 6810423;
 class Pair {
   constructor() {
     this.crawledBlock = STARTING_BLOCK-1;
+    this.tokenSync = new TokenSync();
   }
 
   async getPair(address) {
@@ -54,12 +53,21 @@ class Pair {
     return pair;
   }
 
+  async getToken(address){
+    return await this.tokenSync.getToken(address);
+  }
+
+  async getTokens(addresses) {
+    return await this.tokenSync.getTokens(addresses);
+  }
+
   async warmup() {
     const startMs = Date.now();
+    await this.tokenSync.warmup();
     const pair = await PairModel.find().sort({blockNumber:-1}).limit(1);
     if(pair[0]) this.crawledBlock = pair[0].blockNumber;
     console.log(
-      `warmup end - ${Date.now() - startMs} ms! crawledBlock ${
+      `Pair: warmup done! - ${Date.now() - startMs} ms! crawledBlock ${
         this.crawledBlock
       }`
     );
@@ -108,10 +116,9 @@ class Pair {
   }
 
   async storeTokens(tokens) {
-    // console.log({tokens}, tokens.length);
     if (!tokens.length) return;
-    const res = await axios.post(`${TOKEN_API_URL}/tokens`, { tokens });
-    // console.log(`response from token service ${res.data.status}`);
+    // const res = await axios.post(`${TOKEN_API_URL}/tokens`, { tokens });
+    await this.tokenSync.addTokens(tokens);
   }
 
   async storeDb(pairBatch) {
