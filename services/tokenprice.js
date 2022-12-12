@@ -15,7 +15,6 @@ app.get('/api/v2/tkprice/:tokens', async (req, res) => {
   let rs = [];
   for(let address of tokens){
     const tkPrice = await TokenPrice.findOne({address: address.toLowerCase()}).select('priceUSD -_id').sort({blockNumber:-1});
-    console.log({tkPrice});
     if(tkPrice){
       rs.push({address, priceUSD: tkPrice.priceUSD});
     }
