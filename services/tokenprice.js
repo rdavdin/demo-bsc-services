@@ -32,7 +32,7 @@ app.get('/api/v2/tkprice/history/:address', async (req, res) => {
 const port = process.env.TKPRICE_PORT || 3005;
 const start = async () => {
   try {
-    await connectDB(process.env.MONGODB_URI);
+    await connectDB(process.env.MONGODB_URI_SHARK);
     console.log(`db connected!`);
 
     app.listen(port, () => {

@@ -36,7 +36,7 @@ async function storePriceHistory(){
 
 const connectDB = require("../db/connect");
 async function main(){
-  const conn = await connectDB(process.env.MONGODB_URI);
+  const conn = await connectDB(process.env.MONGODB_URI_SHARK);
   console.log(`db connected!`);
   await loadTkAddresses();
   await storePriceHistory();
