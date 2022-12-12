@@ -1,9 +1,10 @@
 require('dotenv').config();
 const LineByLine = require('line-by-line');
 const { getPriceHistory } = require('./bitquery');
-
 const TokenPrice = require('../models/TokenPrice');
 const filePath = './db/token/template';
+
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
 let addresses = [];
 const loadTkAddresses = async () => {
@@ -24,7 +25,13 @@ async function storePriceHistory(){
   const BUSD = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
   for(let i = 0; i < addresses.length; i++){
     const tokenAddr = addresses[i].toLowerCase();
-    const priceHistory = await getPriceHistory(tokenAddr, BUSD);
+    let priceHistory = [];
+    try {
+      priceHistory = await getPriceHistory(tokenAddr, BUSD);
+    } catch (error) {
+      await sleep(90000);
+      priceHistory = await getPriceHistory(tokenAddr, BUSD);
+    }
     
     priceHistory.forEach((item => {
       TokenPrice.create({address: tokenAddr, blockNumber: item.block, priceUSD: item.price, date: item.date }, (err)=>{
@@ -40,6 +47,7 @@ async function main(){
   console.log(`db connected!`);
   await loadTkAddresses();
   await storePriceHistory();
+  console.log("Done!");
 }
 
 main();
