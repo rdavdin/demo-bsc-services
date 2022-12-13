@@ -14,9 +14,9 @@ app.get('/api/v2/tkprice/:tokens', async (req, res) => {
   const tokens = req.params.tokens.split(',');
   let rs = [];
   for(let address of tokens){
-    const tkPrice = await TokenPrice.findOne({address: address.toLowerCase()}).select('priceUSD -_id').sort({blockNumber:-1});
+    const tkPrice = await TokenPrice.findOne({address: address.toLowerCase()}).select('price -_id').sort({blockNumber:-1});
     if(tkPrice){
-      rs.push({address, priceUSD: tkPrice.priceUSD});
+      rs.push({address, price: tkPrice.price});
     }
   }
   res.status(200).json(rs);
@@ -24,7 +24,7 @@ app.get('/api/v2/tkprice/:tokens', async (req, res) => {
 
 app.get('/api/v2/tkprice/history/:address', async (req, res) => {
   const {address} = req.params;
-  const priceHistory = await TokenPrice.find({address: address.toLowerCase()}).select('blockNumber date priceUSD -_id').sort({blockNumber:-1});
+  const priceHistory = await TokenPrice.find({address: address.toLowerCase()}).select('block date price -_id').sort({blockNumber:-1});
   res.status(200).json({ priceHistory });
 })
 

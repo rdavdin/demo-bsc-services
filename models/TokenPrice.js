@@ -5,7 +5,7 @@ const TokenPriceSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please provide address"]
   },
-  blockNumber: {
+  block: {
     type: Number,
     required: [true, "Please provide blockNumber"]
   },
@@ -13,7 +13,7 @@ const TokenPriceSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please provide date"]
   },
-  priceUSD: {
+  price: {
     type: String
   }
 });

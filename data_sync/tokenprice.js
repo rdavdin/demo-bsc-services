@@ -30,7 +30,8 @@ async function storePriceHistory(){
       priceHistory = await getPriceHistory(tokenAddr, BUSD);
     } catch (error) {
       await sleep(90000);
-      priceHistory = await getPriceHistory(tokenAddr, BUSD);
+      i--;
+      continue;
     }
     
     priceHistory.forEach((item => {
