@@ -2,7 +2,7 @@ require('dotenv').config();
 const LineByLine = require('line-by-line');
 const { getPriceHistory } = require('./bitquery');
 const TokenPrice = require('../models/TokenPrice');
-const filePath = './db/token/template';
+const filePath = './db/token/tkaddress';
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -35,8 +35,11 @@ async function storePriceHistory(){
     }
     
     priceHistory.forEach((item => {
-      TokenPrice.create({address: tokenAddr, blockNumber: item.block, priceUSD: item.price, date: item.date }, (err)=>{
+      TokenPrice.create({address: tokenAddr, block: item.block, price: item.price, date: item.date }, (err)=>{
         if(err) console.log(`Error create a document TokenPrice: ${err.code}`);
+        if(priceHistory[priceHistory.length - 1] === item){
+          console.log(`Done token ${tokenAddr}`);
+        }
       });
     }))
   }

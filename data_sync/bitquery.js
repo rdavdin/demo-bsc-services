@@ -13,7 +13,7 @@ async function getPriceHistory(base, quote) {
             options: {limit: 1000, desc: "t.day"}
             baseCurrency: {is: "${base}"}
             quoteCurrency: {is: "${quote}"}
-            tradeAmountUsd: {gt: 10}
+            tradeAmountUsd: {gt: 1}
         ) {
             p: quotePrice(calculate: average)
             b: minimum(of: block, get: block)
