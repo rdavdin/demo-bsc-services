@@ -32,7 +32,7 @@ app.get('/api/v2/tkprice/history/:address', async (req, res) => {
 
 app.get('/api/v2/tkprice/:address/:block', async (req, res) => {
   const { address, block } = req.params;
-  const price = await TokenPrice.find({address: address.toLowerCase(), block: {$lte: parseInt(block)}, block: {$gt: parseInt(block-864000)}}).sort({block:-1}).limit(1);
+  const price = await TokenPrice.find({$and : [{address: address.toLowerCase()}, {block: {$lte: parseInt(block)}}, {block: {$gt: parseInt(block-864000)}}]}).sort({block:-1}).limit(1);
   if(price.length) res.status(200).json({price: price[0].price, block: price[0].block})
   else res.status(200).json({});
 })
